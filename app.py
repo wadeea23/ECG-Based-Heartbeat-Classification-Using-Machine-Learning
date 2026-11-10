@@ -17,7 +17,7 @@ classes = [
     "Unknown (Q)"
 ]
 
-file = st.file_uploader("Upload CSV File", type=["csv"])
+file = st.file_uploader(type=["csv"])
 
 if file is not None:
 
