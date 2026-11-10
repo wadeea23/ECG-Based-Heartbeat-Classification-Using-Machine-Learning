@@ -5,8 +5,6 @@ import tensorflow as tf
 
 st.title("ECG Heartbeat Classifier")
 
-st.write("Upload your ECG CSV file.")
-
 model = tf.keras.models.load_model("best_model.keras")
 
 classes = [
