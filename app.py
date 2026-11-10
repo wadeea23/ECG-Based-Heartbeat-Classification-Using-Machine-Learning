@@ -5,9 +5,9 @@ import tensorflow as tf
 
 st.title("ECG Heartbeat Classifier")
 
-st.write("Upload your ECG CSV file to classify heartbeats.")
+st.write("Upload your ECG CSV file.")
 
-model = tf.keras.models.load_model("cnn_model.keras")
+model = tf.keras.models.load_model("best_model.keras")
 
 classes = [
     "Normal (N)",
@@ -40,8 +40,8 @@ if file is not None:
         st.subheader("Analysis Results")
 
         st.write("Total Heartbeats:", total)
-        st.write("Abnormal Heartbeats:", abnormal)
         st.write("Normal Heartbeats:", total - abnormal)
+        st.write("Abnormal Heartbeats:", abnormal)
 
         st.subheader("Heartbeat Classification")
 
@@ -57,4 +57,3 @@ if file is not None:
         st.subheader("Classification Chart")
 
         st.bar_chart(summary.set_index("Heartbeat Type"))
-
