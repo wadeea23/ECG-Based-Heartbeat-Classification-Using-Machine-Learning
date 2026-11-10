@@ -63,9 +63,10 @@ The CSV file should have no header, and each row should contain 187 ECG values.
 - Connect the project to ESP32 with an LCD and LEDs.
 - Try to connect an Apple Watch to get live heartbeat data.
 
-## Note
+## Dataset
 
-This project is for learning purposes only. It is not a medical diagnosis.
+"https://www.physionet.org/content/ptbdb/1.0.0/"
+"https://www.physionet.org/physiobank/database/mitdb/"
 
 ## Author
 
