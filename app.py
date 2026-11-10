@@ -159,6 +159,4 @@ if file is not None:
                     classes[int(results[int(number) - 1])]
                 )
 
-st.caption(
-    "This app is for educational purposes only, not a medical diagnosis."
-)
+
