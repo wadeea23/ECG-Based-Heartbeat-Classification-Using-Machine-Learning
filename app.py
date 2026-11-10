@@ -15,7 +15,7 @@ classes = [
     "Unknown (Q)"
 ]
 
-file = st.file_uploader('Upload your data',type=["csv"])
+file = st.file_uploader("Upload your data", type=["csv"])
 
 if file is not None:
 
@@ -24,9 +24,13 @@ if file is not None:
     beats = data.iloc[:, :187].values
     beats = beats.astype(float)
 
-    beats = beats.reshape(-1, 187, 1)
-
     if st.button("Analyze ECG"):
+
+        st.subheader("ECG Signal")
+
+        st.line_chart(beats[0])
+
+        beats = beats.reshape(-1, 187, 1)
 
         prediction = model.predict(beats)
 
