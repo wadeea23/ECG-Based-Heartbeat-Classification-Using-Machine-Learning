@@ -44,8 +44,7 @@ I trained and compared three models:
 I evaluated the models to compare their performance and select the best model for each classification stage.
 
 ## Streamlit App
-
-***--
+-------------------------------
 
 
 ## Project Files
@@ -54,7 +53,7 @@ This project contains the code, trained models, and other files needed for the a
 
 ## How to Run
 
-**************
+--------------------
 
 ## Future Work
 
