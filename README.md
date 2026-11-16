@@ -49,7 +49,7 @@ I evaluated the models to compare their performance and select the best model fo
 
 ## Project Files
 
-This project contains the code, trained models, and other files needed for the application.
+------------------------------------
 
 ## How to Run
 
