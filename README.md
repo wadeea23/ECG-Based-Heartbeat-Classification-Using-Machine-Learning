@@ -64,12 +64,7 @@ The CSV file should have no header, and each row should contain 187 ECG values.
 
 ## Dataset & Sources 
 
-"https://www.physionet.org/content/ptbdb/1.0.0/"
-
-"https://www.physionet.org/physiobank/database/mitdb/"
-
-"https://www.kaggle.com/datasets/shayanfazeli/heartbeat"
-
+"https://physionet.org/content/mitdb/1.0.0/"
 ## Author
 
 Wadeea Almutawa
