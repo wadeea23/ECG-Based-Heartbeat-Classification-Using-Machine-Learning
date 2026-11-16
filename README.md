@@ -18,7 +18,6 @@ This project is about classifying ECG heartbeats using Machine Learning. The app
 | S | Supraventricular |
 | V | Ventricular |
 | F | Fusion |
-| Q | Unknown |
 
 ## Dataset
 
