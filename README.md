@@ -1,21 +1,36 @@
-# ECG Heartbeat Classification Using Machine Learning
+# ECG-Based Heartbeat Classification Using Machine Learning
+
+## Live Demo
+Try the application here:
+
+[ECG Heartbeat Classification – Streamlit App](https://ecg-based-heartbeat-classification-wadeea.streamlit.app/)
+
+## GitHub Repository
+[View the Project on GitHub](https://github.com/wadeea23/ECG-Based-Heartbeat-Classification-Using-Machine-Learning)
 
 ## About the Project
+This project uses Machine Learning and Deep Learning to classify ECG heartbeats. It aims to detect normal and abnormal heartbeats and identify the type of abnormal heartbeat.
 
-This project is about classifying ECG heartbeats using Machine Learning. I used the MIT-BIH Arrhythmia Database to train and compare different models.
+The project includes a Streamlit application that allows users to upload ECG data or test ECG signals in real time using a connected device.
 
-The project aims to identify normal and abnormal heartbeats and classify the abnormal ones into different types.
+## Problem Statement & Motivation
+Abnormal heartbeats can indicate potential heart rhythm problems. Detecting these patterns from ECG signals can help demonstrate how Machine Learning can support automated heartbeat analysis.
 
-## What the Project Does
+The main motivation behind this project is to apply my Electronic Engineering background and Data Science skills to a practical healthcare-related application.
 
-- Classifies heartbeats into normal and abnormal.
-- Identifies the type of abnormal heartbeat.
-- Uses Machine Learning models to make predictions.
-- Compares the results of different models.
+## Dataset
+The project uses the **MIT-BIH Arrhythmia Database** from PhysioNet.
 
-## Heartbeat Classes
+Dataset source:  
+https://physionet.org/content/mitdb/1.0.0/
 
-The project includes four heartbeat classes:
+Dataset information:
+- 48 approximately half-hour ECG recordings.
+- Two ECG channels per recording.
+- Sampling frequency of 360 Hz.
+- Expert-reviewed heartbeat annotations.
+
+The project focuses on four heartbeat classes:
 
 | Class | Description |
 |---|---|
@@ -24,43 +39,113 @@ The project includes four heartbeat classes:
 | V | Ventricular Ectopic Beat |
 | F | Fusion Beat |
 
-## Dataset
+The ECG data is prepared into individual heartbeat segments containing 360 samples each.
 
-I used the **MIT-BIH Arrhythmia Database** from PhysioNet.
+## Models & Methodology
 
-Each heartbeat contains 360 signal values. I prepared the data and used four heartbeat classes: N, S, V, and F.
-
-Dataset link:  
-https://physionet.org/content/mitdb/1.0.0/
-
-## Machine Learning Models
-
-I trained and compared three models:
+Different models were trained and compared, including:
 
 - Decision Tree
 - K-Nearest Neighbors (KNN)
 - Convolutional Neural Network (CNN)
 
-I evaluated the models to compare their performance and select the best model for each classification stage.
+The final classification process uses two stages:
 
-## Streamlit App
--------------------------------
+1. **Binary Classification:** A CNN model classifies heartbeats as Normal or Abnormal.
+2. **Multi-Class Classification:** A second CNN model identifies the type of abnormal heartbeat (S, V, or F).
 
+### Evaluation Metrics
 
-## Project Files
+Because the dataset is imbalanced, **Recall was selected as the primary evaluation metric instead of Accuracy**.
 
-------------------------------------
+Accuracy can be misleading when one class has significantly more samples than other classes. A model may achieve high accuracy by predicting the majority class while missing many abnormal heartbeats.
 
-## How to Run
+Recall helps measure how many actual positive cases the model successfully detects.
 
---------------------
+The evaluation also considers the confusion matrix and other classification metrics to better understand model performance.
 
-## Future Work
+### Model Results
 
-- Test the models with real-time ECG signals.
-- Connect the system to a hardware device.
-- Improve the model results using more ECG data.
+| Model | Evaluation Metric |
+|---|---|
+| Decision Tree | Recall |
+| KNN | Recall |
+| CNN | Recall |
+
+## Streamlit Application
+
+The application provides two main features:
+
+**1. Upload ECG CSV**
+- Upload an ECG dataset in CSV format.
+- Display the ECG signal.
+- Classify the heartbeat signal.
+- Display the detected heartbeat type.
+
+**2. Live ECG**
+- Read ECG data from a connected Arduino device.
+- Display the live ECG signal.
+- Detect whether the signal is disconnected or unavailable.
+- Classify the detected heartbeat.
+
+## Technologies Used
+- Python
+- Pandas
+- NumPy
+- Scikit-learn
+- TensorFlow / Keras
+- Streamlit
+- SciPy
+- Arduino
+
+## How to Run the Project
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/wadeea23/ECG-Based-Heartbeat-Classification-Using-Machine-Learning.git
+cd ECG-Based-Heartbeat-Classification-Using-Machine-Learning
+```
+
+### 2. Install the required libraries
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Run the Streamlit application
+
+```bash
+streamlit run app.py
+```
+
+## Repository Structure
+
+```text
+ECG-Based-Heartbeat-Classification/
+│
+├── app.py
+├── ECG.ipynb
+├── best_bainary_model.keras
+├── cnn2_model.keras
+├── encoder2.pkl
+├── requirements.txt
+└── README.md
+```
+
+## Limitations & Future Work
+- Test the system with more real-world ECG recordings.
+- Improve the classification of minority heartbeat classes.
+- Test the system with different ECG hardware devices.
+- Improve real-time signal processing and classification.
+
+## License & Acknowledgments
+
+The MIT-BIH Arrhythmia Database is provided by PhysioNet under the Open Data Commons Attribution License (ODC-By) v1.0.
+
+Dataset reference:
+
+MIT-BIH Arrhythmia Database (version 1.0.0). PhysioNet. https://doi.org/10.13026/C2F305
 
 ## Author
-
-Wadeea Almutawa
+**Wadeea Almutawa**
