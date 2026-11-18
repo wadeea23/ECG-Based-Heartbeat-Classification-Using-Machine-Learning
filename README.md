@@ -3,7 +3,7 @@
 ## Live Demo
 Try the application here:
 
-[ECG Heartbeat Classification – Streamlit App](https://ecg-based-heartbeat-classification-wadeea.streamlit.app/)
+[ECG Heartbeat Classification – Streamlit App](https://ecg-based-heartbeat-classification-wadeea21.streamlit.app/)
 
 ## GitHub Repository
 [View the Project on GitHub](https://github.com/wadeea23/ECG-Based-Heartbeat-Classification-Using-Machine-Learning)
