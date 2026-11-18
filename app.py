@@ -10,7 +10,7 @@ from scipy.signal import find_peaks
 st.title("ECG Heartbeat Classification")
 
 model = tf.keras.models.load_model("best_model2.keras")
-encoder = joblib.load("encoder2.pkl")
+encoder = joblib.load("encoder.pkl")
 
 file = st.file_uploader("Upload ECG CSV", type="csv")
 
