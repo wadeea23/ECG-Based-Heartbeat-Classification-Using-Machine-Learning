@@ -10,17 +10,16 @@ from reportlab.lib.styles import getSampleStyleSheet
 from xml.sax.saxutils import escape
 
 st.set_page_config(page_title="ECG Monitor", layout="wide")
+st.title("ECG Monitor")
+
 model = tf.keras.models.load_model("best_model2.keras")
 encoder = joblib.load("encoder.pkl")
-
-if "report" not in st.session_state:
-    st.session_state.report = None
-if "pdf" not in st.session_state:
-    st.session_state.pdf = None
+st.session_state.setdefault("report", None)
+st.session_state.setdefault("pdf", None)
 
 names = {"N": "Normal Beat", "S": "Supraventricular Premature Beat",
-         "V": "Premature Ventricular Contraction",
-         "F": "Fusion of Ventricular and Normal Beat", "Q": "Unknown Beat"}
+         "V": "Premature Ventricular Contraction", "F": "Fusion of Ventricular and Normal Beat",
+         "Q": "Unknown Beat"}
 
 def get_beats(signal):
     peaks, _ = find_peaks(signal, distance=100)
@@ -32,63 +31,77 @@ def classify(beats):
     binary, beat_type = model.predict(beats.reshape(-1, 360, 1), verbose=0)
     binary = (binary.flatten() > 0.5).astype(int)
     normal, abnormal = int(sum(binary == 0)), int(sum(binary == 1))
+    total = normal + abnormal
     labels = encoder.inverse_transform(np.argmax(beat_type, axis=1))
-    types = Counter(names.get(str(x), str(x)) for x in labels)
-    result = "ABNORMAL" if abnormal else "NORMAL"
+    result = "NO RESULTS" if total == 0 else "NORMAL" if abnormal/total <= 0.05 else "ABNORMAL"
+    types = Counter(names.get(str(x), str(x)) for x in labels[binary == 1])
+
     st.write("**Detected Result:**", result)
     st.write("**Normal Beats:**", normal, "| **Abnormal Beats:**", abnormal)
-    st.write("**Detected Beat Types:**")
-    for name, count in types.items():
-        st.write(f"- {name}: {count}")
+    if result == "ABNORMAL":
+        st.write("**Detected Beat Types:**")
+        for name, count in types.items():
+            st.write(f"- {name}: {count}")
     return result, normal, abnormal, types
 
 def make_report(result, normal, abnormal, types):
-    prompt = f"""Write a simple English ECG report with Result, Detected Beat Types, Explanation and Important Note.
-    Result: {result}. Normal: {normal}. Abnormal: {abnormal}. Beat types: {dict(types)}.
-    Do not diagnose disease or invent BPM or recovery time. Advise consulting a doctor if abnormal.
-    This is an experimental project, not a medical device."""
+    beat_types = dict(types) if result == "ABNORMAL" else "No abnormal types to display."
+    prompt = f"""
+    Write a simple English ECG report with:
+    1. Overall Result: {result}. Use this result exactly.
+    2. Detected Beat Types: {beat_types}
+    Explain PVC as an early heartbeat starting in the lower chambers.
+    Explain Supraventricular Premature Beat as an early heartbeat
+    starting above the ventricles.
+    Explain Fusion Beat as a combination of normal and ventricular signals.
+    Only list abnormal types if the result is ABNORMAL.
+    3. Explanation: Explain the result simply. Recommend consulting a doctor
+    if ABNORMAL.
+    4. Important Note: This is an experimental machine learning project,
+    not a medical device. It cannot diagnose diseases.
+    Do not show beat counts, classification letters, BPM, or Recovery Time.
+    Do not invent medical information.
+    """
     r = requests.post("https://openrouter.ai/api/v1/chat/completions",
-        headers={"Authorization": f"Bearer {st.secrets['OPENROUTER_API_KEY']}", "Content-Type": "application/json"},
-        json={"model": "openrouter/auto", "messages": [{"role": "user", "content": prompt}], "temperature": 0.3}, timeout=60)
+        headers={"Authorization": f"Bearer {st.secrets['OPENROUTER_API_KEY']}",
+                 "Content-Type": "application/json"},
+        json={"model": "openrouter/auto", "messages": [{"role": "user", "content": prompt}], "temperature": 0.3},
+        timeout=60)
     r.raise_for_status()
     report = r.json()["choices"][0]["message"]["content"]
     pdf = io.BytesIO()
-    styles = getSampleStyleSheet()
-    content = [Paragraph("ECG Report", styles["Title"]), Spacer(1, 15)]
+    content = [Paragraph("ECG Report", getSampleStyleSheet()["Title"]), Spacer(1, 15)]
     for line in report.splitlines():
         if line.strip():
-            content += [Paragraph(escape(line), styles["Normal"]), Spacer(1, 7)]
+            content += [Paragraph(escape(line), getSampleStyleSheet()["Normal"]), Spacer(1, 7)]
     SimpleDocTemplate(pdf).build(content)
     st.session_state.report, st.session_state.pdf = report, pdf.getvalue()
 
 def show_pdf(key):
     if st.session_state.report and st.session_state.pdf:
-        st.markdown("### ECG Report")
         st.markdown(st.session_state.report)
-        st.download_button("Download PDF", st.session_state.pdf, "ECG_Report.pdf", mime="application/pdf", key=key)
+        st.download_button("Download PDF", st.session_state.pdf, "ECG_Report.pdf",
+                           mime="application/pdf", key=key)
 
 tab1, tab2 = st.tabs(["Upload CSV", "Live ECG"])
 
 with tab1:
-    st.subheader("Upload ECG File")
-    upload = st.file_uploader("Upload CSV", type=["csv"], key="upload")
+    upload = st.file_uploader("Upload ECG File", type=["csv"], key="upload")
     if upload and st.button("Classify ECG", key="classify"):
         data = pd.read_csv(upload)
-        beats = data.values if data.shape[1] == 360 else get_beats(pd.to_numeric(data.iloc[:, 0], errors="coerce").dropna().values)
+        beats = data.values if data.shape[1] == 360 else get_beats(
+            pd.to_numeric(data.iloc[:, 0], errors="coerce").dropna().values)
         if len(beats):
             try:
-                st.session_state.report = None
-                st.session_state.pdf = None
+                st.session_state.report = st.session_state.pdf = None
                 make_report(*classify(beats))
             except Exception as e:
                 st.error(f"Error: {e}")
         else:
             st.error("No valid ECG beats found.")
-    st.divider()
     show_pdf("upload_pdf")
 
 with tab2:
-    st.subheader("Live ECG Reading")
     if st.button("Start ECG Reading"):
         try:
             arduino = serial.Serial("COM6", 115200, timeout=1)
@@ -110,12 +123,10 @@ with tab2:
                 st.line_chart(signal)
                 beats = get_beats(np.array(signal))
                 if len(beats):
-                    st.session_state.report = None
-                    st.session_state.pdf = None
+                    st.session_state.report = st.session_state.pdf = None
                     make_report(*classify(beats))
                 else:
                     st.error("Not enough ECG data. Try again.")
         except Exception as e:
             st.error(f"Error: {e}")
-    st.divider()
     show_pdf("live_pdf")
