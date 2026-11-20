@@ -1,112 +1,155 @@
 # ECG-Based Heartbeat Classification Using Machine Learning
 
-## Live Demo
-Try the application here:
+## Project Overview
 
-[ECG Heartbeat Classification – Streamlit App](https://ecg-based-heartbeat-classification-wadeea21.streamlit.app/)
+This project uses Machine Learning and Deep Learning to classify ECG heartbeats into normal and abnormal categories.
+
+The main goal is to develop an ECG monitoring system that can analyze heartbeat signals, detect abnormal heartbeat patterns, and display the classification results.
+
+The project combines a trained CNN model with an ECG sensor and an Arduino Uno for real-time signal collection.
+
+**Note:** This project is for educational and experimental purposes only. It is not a medical device and cannot diagnose heart diseases.
+
+## Live Application
+
+[Open the Streamlit App](https://ecg-based-heartbeat-classification-wadeea21.streamlit.app/)
 
 ## GitHub Repository
+
 [View the Project on GitHub](https://github.com/wadeea23/ECG-Based-Heartbeat-Classification-Using-Machine-Learning)
 
-## About the Project
-This project uses Machine Learning and Deep Learning to classify ECG heartbeats. It aims to detect normal and abnormal heartbeats and identify the type of abnormal heartbeat.
-
-The project includes a Streamlit application that allows users to upload ECG data or test ECG signals in real time using a connected hardware device.
-
-The hardware setup includes an Arduino Uno, an AD8232 ECG sensor, and an LCD screen to display the classification results and electrode connection status.
-
-## Problem Statement & Motivation
-Abnormal heartbeats can indicate potential heart rhythm problems. Detecting these patterns from ECG signals can help demonstrate how Machine Learning can support automated heartbeat analysis.
-
-The main motivation behind this project is to apply my Electronic Engineering background and Data Science skills to a practical healthcare-related application.
+---
 
 ## Dataset
+
 The project uses the **MIT-BIH Arrhythmia Database** from PhysioNet.
 
-Dataset source:  
-https://physionet.org/content/mitdb/1.0.0/
+Dataset link: https://physionet.org/content/mitdb/1.0.0/
 
-Dataset information:
-- 48 approximately half-hour ECG recordings.
-- Two ECG channels per recording.
-- Sampling frequency of 360 Hz.
+The database contains:
+
+- 48 half-hour ECG recordings.
+- ECG signals recorded at 360 Hz.
+- Two ECG channels.
 - Expert-reviewed heartbeat annotations.
 
-The project focuses on four heartbeat classes:
+### Heartbeat Classes
 
-| Class | Description |
+The dataset includes the following heartbeat categories:
+
+| Symbol | Description |
 |---|---|
 | N | Normal Beat |
-| S | Supraventricular Ectopic Beat |
-| V | Ventricular Ectopic Beat |
-| F | Fusion Beat |
+| S | Supraventricular Premature Beat |
+| V | Premature Ventricular Contraction |
+| F | Fusion of Ventricular and Normal Beat |
 
-The ECG data is prepared into individual heartbeat segments containing 360 samples each.
 
-## Models & Methodology
+The classes are imbalanced, meaning that some heartbeat categories have significantly more samples than others.
 
-Different models were trained and compared, including:
+---
 
-- Decision Tree
-- K-Nearest Neighbors (KNN)
-- Convolutional Neural Network (CNN)
+## Data Preprocessing
 
-The final classification process uses two stages:
+The following steps were used to prepare the ECG signals:
 
-1. **Binary Classification:** A CNN model classifies heartbeats as Normal or Abnormal.
-2. **Multi-Class Classification:** A second CNN model identifies the type of abnormal heartbeat (S, V, or F).
+1. Load the ECG recordings and their annotations.
+2. Detect heartbeat locations.
+3. Extract heartbeat segments.
+4. Prepare each heartbeat using 360 samples.
+5. Encode the heartbeat labels.
+6. Split the data into training , validations and testing sets.
+7. Apply class sample weights to help handle class imbalance.
 
-## Evaluation Metrics
+## Machine Learning Model
 
-Because the dataset is imbalanced, **Recall was selected as the primary evaluation metric instead of Accuracy**.
+A **Convolutional Neural Network (CNN)** was selected for heartbeat classification.
 
-Accuracy can be misleading when one class has significantly more samples than other classes. A model may achieve high accuracy by predicting the majority class while missing many abnormal heartbeats.
+The model has two outputs:
 
-Recall helps measure how many actual positive cases the model successfully detects.
+### 1. Binary Classification
 
-The evaluation also considers the confusion matrix and other classification metrics to better understand model performance.
+Classifies each heartbeat into:
 
-## Model Results
+- Normal
+- Abnormal
 
-| Model | Evaluation Metric |
-|---|---|
-| Decision Tree | Recall |
-| KNN | Recall |
-| CNN | Recall |
+### 2. Heartbeat Type Classification
 
-## Streamlit Application
+Identifies the heartbeat category:
 
-The application provides two main features:
+- N: Normal Beat
+- S: Supraventricular Premature Beat
+- V: Premature Ventricular Contraction
+- F: Fusion Beat
 
-**1. Upload ECG CSV**
-- Upload an ECG dataset in CSV format.
-- Display the ECG signal.
-- Classify the heartbeat signal.
-- Display the detected heartbeat type.
 
-**2. Live ECG**
-- Read ECG data from a connected Arduino device.
-- Display the live ECG signal.
-- Detect whether the electrodes are disconnected or the signal is unavailable.
-- Classify the detected heartbeat.
-- Send the classification result to the LCD screen.
+The model uses a 360-sample heartbeat segment as its input.
+
+### Model Evaluation
+
+The model was evaluated using:
+
+- Accuracy
+- Precision
+- Recall
+- F1-score
+- Confusion Matrix
+
+Recall is particularly important because the dataset contains imbalanced heartbeat classes.
+
+---
+
+## System Features
+
+The Streamlit application provides two main functions:
+
+### 1. Upload ECG File
+
+- Upload an ECG CSV file.
+- Analyze the ECG data.
+- Extract heartbeat segments.
+- Classify the detected heartbeats.
+- Display the classification results.
+
+### 2. Live ECG Monitoring
+
+- Receive ECG readings from the Arduino Uno through a serial connection.
+- Display the collected ECG signal.
+- Detect disconnected electrodes.
+- Extract heartbeat segments.
+- Classify the detected heartbeats.
+- Display the overall classification result.
+
+### Overall Result
+
+The application displays one of the following results:
+
+- **NORMAL:** The percentage of abnormal beats is within the project's defined 5% threshold.
+- **ABNORMAL:** The percentage of abnormal beats is above the project's defined 5% threshold.
+- **NO RESULTS:** No valid heartbeat segments were detected.
+
+The 5% threshold is a project-specific rule and is not a clinical medical standard.
+
+---
 
 ## Hardware Components
 
 The hardware setup includes:
 
-- Arduino Uno
-- AD8232 ECG Sensor
-- 16x2 I2C LCD Display
-- ECG Electrodes
+| Component | Purpose |
+|---|---|
+| Arduino Uno | Collects sensor readings |
+| AD8232 ECG Sensor | Measures ECG signals |
+| ECG Electrodes | Collect ECG electrical activity |
+| 16x2 I2C LCD | Intended to display results |
 
-**Hardware Functionality:**
-- The AD8232 sensor captures ECG signals.
-- Arduino Uno reads and sends the ECG data to the Streamlit application.
-- The LCD displays the system status and classification result.
-- The LCD also indicates whether the ECG electrodes are connected or disconnected.
+The Arduino Uno sends ECG readings to the computer, where the Streamlit application processes and classifies the signal.
+
+---
 
 ## Technologies Used
+
 - Python
 - Pandas
 - NumPy
@@ -114,34 +157,15 @@ The hardware setup includes:
 - TensorFlow / Keras
 - Streamlit
 - SciPy
-- Arduino
+- Arduino IDE
+- Serial Communication
 
+---
 
-## How to Run the Project
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/wadeea23/ECG-Based-Heartbeat-Classification-Using-Machine-Learning.git
-cd ECG-Based-Heartbeat-Classification-Using-Machine-Learning
-```
-
-### 2. Install the required libraries
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Run the Streamlit application
-
-```bash
-streamlit run app.py
-```
-
-## Repository Structure
+## Project Files
 
 ```text
-ECG-Based-Heartbeat-Classification/
+ECG-Based-Heartbeat-Classification-Using-Machine-Learning/
 │
 ├── app.py
 ├── ECG.ipynb
@@ -151,25 +175,10 @@ ECG-Based-Heartbeat-Classification/
 └── README.md
 ```
 
-## Limitations & Future Work
-- Test the system with more real-world ECG recordings.
-- Improve the classification of minority heartbeat classes.
-- Test the system with different ECG hardware devices.
-- Improve real-time signal processing and classification.
-- Enhance the recovery monitoring capabilities of the system.
+| File | Description |
+|---|---|
+| app.py | Streamlit application |
+| ECG.ipynb | Data analysis 
 
-## License & Acknowledgments
-
-The MIT-BIH Arrhythmia Database is provided by PhysioNet under the Open Data Commons Attribution License (ODC-By) v1.0.
-
-Dataset reference:
-
-MIT-BIH Arrhythmia Database (version 1.0.0). PhysioNet. https://doi.org/10.13026/C2F305
-
-
-##Author 
-
-WADEEA ALMUTAWA
-## Author
-
-**Wadeea Almutawa**
+## Author 
+Wadeea Almutawa 
