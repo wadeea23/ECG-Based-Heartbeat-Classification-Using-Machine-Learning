@@ -177,8 +177,15 @@ ECG-Based-Heartbeat-Classification-Using-Machine-Learning/
 
 | File | Description |
 |---|---|
-| app.py | Streamlit application |
-| ECG.ipynb | Data analysis 
+| `app.py` | Streamlit application |
+| `ECG.ipynb` | Data analysis, preprocessing, and model training |
+| `best_model2.keras` | Trained CNN model |
+| `encoder.pkl` | Label encoder |
+| `requirements.txt` | Required Python libraries |
+| `README.md` | Project documentation |
 
-## Author 
-Wadeea Almutawa 
+---
+
+## Author
+
+Wadeea Almutawa
