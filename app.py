@@ -8,8 +8,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from xml.sax.saxutils import escape
 
-st.set_page_config(page_title="ECG Monitor", layout="wide")
-st.title("ECG Monitor")
+st.set_page_config(page_title="ECG Clasiffy", layout="wide")
+st.title("ECG clasification")
 
 model = tf.keras.models.load_model("best_model2.keras")
 encoder = joblib.load("encoder.pkl")
