@@ -2,40 +2,38 @@
 
 ## Project Overview
 
-This project uses Machine Learning and Deep Learning to classify ECG heartbeats into normal and abnormal categories.
+This project uses machine learning to look at ECG heartbeats and decide if each one is **normal** or **abnormal**. If a heartbeat is abnormal, the model also tells which type it is.
 
-The main goal is to develop an ECG monitoring system that can analyze heartbeat signals, detect abnormal heartbeat patterns, and display the classification results.
+The project has three parts:
+- A trained CNN model that classifies heartbeats.
+- A Streamlit app that shows the results.
+- A small hardware setup (ECG sensor and Arduino Uno) that collects a live ECG signal.
 
-The project combines a trained CNN model with an ECG sensor and an Arduino Uno for real-time signal collection.
+> **Note:** This project is only for learning and experiments. It is not a medical device, and it cannot diagnose heart diseases.
 
-**Note:** This project is for educational and experimental purposes only. It is not a medical device and cannot diagnose heart diseases.
+## Links
 
-## Live Application
+- **Live app:** [Open the Streamlit app](https://ecg-based-heartbeat-classification-wadeea21.streamlit.app/)
+- **Demo video:** [video demo ](https://drive.google.com/file/d/1xaYw5IbxyfQt4Sz22Rv8mfIQ5S4i_eR9/view?usp=sharing)
+- **GitHub:** [View the project on GitHub](https://github.com/wadeea23/ECG-Based-Heartbeat-Classification-Using-Machine-Learning)
 
-[Open the Streamlit App](https://ecg-based-heartbeat-classification-wadeea21.streamlit.app/)
+## Why This Project?
 
-## GitHub Repository
-
-[View the Project on GitHub](https://github.com/wadeea23/ECG-Based-Heartbeat-Classification-Using-Machine-Learning)
-
----
+A half-hour ECG recording has thousands of heartbeats, and the abnormal ones are rare. Checking all of them by hand takes a long time. This project is an automatic first check. It marks the beats that look different, so an expert can look at them first.
 
 ## Dataset
 
-The project uses the **MIT-BIH Arrhythmia Database** from PhysioNet.
+I used the **MIT-BIH Arrhythmia Database** from PhysioNet.
 
 Dataset link: https://physionet.org/content/mitdb/1.0.0/
 
-The database contains:
-
+The database has:
 - 48 half-hour ECG recordings.
 - ECG signals recorded at 360 Hz.
 - Two ECG channels.
-- Expert-reviewed heartbeat annotations.
+- Heartbeat labels checked by experts.
 
 ### Heartbeat Classes
-
-The dataset includes the following heartbeat categories:
 
 | Symbol | Description |
 |---|---|
@@ -44,123 +42,106 @@ The dataset includes the following heartbeat categories:
 | V | Premature Ventricular Contraction |
 | F | Fusion of Ventricular and Normal Beat |
 
-
-The classes are imbalanced, meaning that some heartbeat categories have significantly more samples than others.
-
----
+The classes are not balanced. Some classes have many more samples than others.
 
 ## Data Preprocessing
 
-The following steps were used to prepare the ECG signals:
+These are the steps I used to prepare the ECG signals:
 
-1. Load the ECG recordings and their annotations.
-2. Detect heartbeat locations.
-3. Extract heartbeat segments.
-4. Prepare each heartbeat using 360 samples.
-5. Encode the heartbeat labels.
-6. Split the data into training , validations and testing sets.
-7. Apply class sample weights to help handle class imbalance.
+1. Load the ECG recordings and their labels.
+2. Cut out each heartbeat segment.
+3. Use 360 samples for each heartbeat.
+4. Encode the heartbeat labels.
+5. Split the data into training, validation, and testing sets.
+6. Use class weights to help with the imbalanced classes.
 
-## Machine Learning Model
+## Model
 
-A **Convolutional Neural Network (CNN)** was selected for heartbeat classification.
+I used a **Convolutional Neural Network (CNN)**. A CNN is good at finding patterns in shapes, and a heartbeat has a shape.
 
-The model has two outputs:
+The model takes one heartbeat (360 samples) and gives two outputs:
 
-### 1. Binary Classification
+1. **Normal or Abnormal**
+2. **Heartbeat type:** N, S, V, or F
 
-Classifies each heartbeat into:
+### Evaluation
 
-- Normal
-- Abnormal
-
-### 2. Heartbeat Type Classification
-
-Identifies the heartbeat category:
-
-- N: Normal Beat
-- S: Supraventricular Premature Beat
-- V: Premature Ventricular Contraction
-- F: Fusion Beat
-
-
-The model uses a 360-sample heartbeat segment as its input.
-
-### Model Evaluation
-
-The model was evaluated using:
-
+I checked the model with:
 - Accuracy
 - Precision
 - Recall
 - F1-score
-- Confusion Matrix
+- Confusion matrix
 
-Recall is particularly important because the dataset contains imbalanced heartbeat classes.
+Recall is very important here, because the classes are imbalanced and we do not want to miss abnormal beats.
 
----
+## Results
 
-## System Features
+On the test data:
 
-The Streamlit application provides two main functions:
+| Result | Score |
+|---|---|
+| Recall for normal vs abnormal | **97%** |
+| Accuracy for abnormal type (S, V, F) | **96%** |
 
-### 1. Upload ECG File
+## Streamlit App
 
-- Upload an ECG CSV file.
-- Analyze the ECG data.
-- Extract heartbeat segments.
-- Classify the detected heartbeats.
-- Display the classification results.
+The app has two tabs.
 
-### 2. Live ECG Monitoring
+### 1. Upload CSV
 
-- Receive ECG readings from the Arduino Uno through a serial connection.
-- Display the collected ECG signal.
-- Detect disconnected electrodes.
-- Extract heartbeat segments.
-- Classify the detected heartbeats.
-- Display the overall classification result.
+1. Upload an ECG CSV file.
+2. Click **Classify ECG**.
+3. The app finds the heartbeats and classifies each one.
+4. It shows the result, the number of normal and abnormal beats, and the types of abnormal beats found.
+5. It explains each type in simple words.
+6. You can download a one-page **PDF report**.
+
+### 2. Live ECG
+
+1. Connect the sensor and click **Start ECG Reading**.
+2. The app gets the ECG signal from the Arduino Uno through a serial connection and shows it on the screen.
+3. If an electrode comes off, the app shows a warning and stops.
+4. The app finds the heartbeats, classifies them, and shows the overall result.
+
+> **Important:** Live ECG only works on a local computer that is connected to the Arduino. It does not work in the online Streamlit link. The online app only supports Upload CSV.
 
 ### Overall Result
 
-The application displays one of the following results:
+- **NORMAL:** the abnormal beats are 5% or less.
+- **ABNORMAL:** the abnormal beats are more than 5%.
+- **NO RESULTS:** no valid heartbeats were found.
 
-- **NORMAL:** The percentage of abnormal beats is within the project's defined 5% threshold.
-- **ABNORMAL:** The percentage of abnormal beats is above the project's defined 5% threshold.
-- **NO RESULTS:** No valid heartbeat segments were detected.
+The 5% limit is a rule I chose for this project. It is not a medical standard.
 
-The 5% threshold is a project-specific rule and is not a clinical medical standard.
+## Hardware
 
----
-
-## Hardware Components
-
-The hardware setup includes:
-
-| Component | Purpose |
+| Component | What it does |
 |---|---|
-| Arduino Uno | Collects sensor readings |
-| AD8232 ECG Sensor | Measures ECG signals |
-| ECG Electrodes | Collect ECG electrical activity |
-| 16x2 I2C LCD | Intended to display results |
+| Arduino Uno | Reads the sensor and sends the data to the computer |
+| AD8232 ECG Sensor | Measures the ECG signal |
+| ECG Electrodes | Pick up the electrical activity of the heart |
+| 16x2 I2C LCD | I planned to show the result on it, but it is not working yet |
 
-The Arduino Uno sends ECG readings to the computer, where the Streamlit application processes and classifies the signal.
+The Arduino sends the readings to the computer. The Streamlit app then processes and classifies the signal.
 
----
+## Limitations
+
+- The result depends on the signal quality and where the electrodes are placed.
+- The model only knows the four trained classes (N, S, V, F).
+- I tested the model on a random split of heartbeats, so I did not test it on completely new patients yet.
+- Live ECG needs a local computer.
+
+## Future Work
+
+- Test the model on new patients.
+- Use more real-world ECG data.
+- Add recovery-time monitoring.
+  
 
 ## Technologies Used
 
-- Python
-- Pandas
-- NumPy
-- Scikit-learn
-- TensorFlow / Keras
-- Streamlit
-- SciPy
-- Arduino IDE
-- Serial Communication
-
----
+Python, Pandas, NumPy, Scikit-learn, TensorFlow / Keras, Streamlit, SciPy, Arduino IDE, Serial Communication
 
 ## Project Files
 
@@ -172,19 +153,25 @@ ECG-Based-Heartbeat-Classification-Using-Machine-Learning/
 ├── best_model2.keras
 ├── encoder.pkl
 ├── requirements.txt
-└── README.md
+├── README.md
+└── arduino_ad8232/
 ```
 
 | File | Description |
 |---|---|
-| `app.py` | Streamlit application |
+| `app.py` | Streamlit app |
 | `ECG.ipynb` | Data analysis, preprocessing, and model training |
 | `best_model2.keras` | Trained CNN model |
 | `encoder.pkl` | Label encoder |
-| `requirements.txt` | Required Python libraries |
-| `README.md` | Project documentation |
+| `requirements.txt` | Python libraries needed |
+| `arduino_ad8232/` | Arduino code for the sensor |
 
----
+## How to Run
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
 
 ## Author
 
