@@ -13,9 +13,9 @@ The project has three parts:
 
 ## Links
 
-- **Live app:** [Open the Streamlit app](https://ecg-based-heartbeat-classification-wadeea21.streamlit.app/)
+- **Live app:** [Streamlit app](https://ecg-based-heartbeat-classification-wadeea21.streamlit.app/)
 - **Demo video:** [video demo ](https://drive.google.com/file/d/1xaYw5IbxyfQt4Sz22Rv8mfIQ5S4i_eR9/view?usp=sharing)
-- **GitHub:** [View the project on GitHub](https://github.com/wadeea23/ECG-Based-Heartbeat-Classification-Using-Machine-Learning)
+- **GitHub:** [GitHub](https://github.com/wadeea23/ECG-Based-Heartbeat-Classification-Using-Machine-Learning)
 
 ## Why This Project?
 
