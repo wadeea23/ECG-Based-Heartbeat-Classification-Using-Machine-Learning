@@ -31,10 +31,14 @@ def classify(beats):
     labels = encoder.inverse_transform(np.argmax(types, axis=1))
     result = "NO RESULTS" if len(binary) == 0 else "NORMAL" if abnormal/len(binary) <= 0.05 else "ABNORMAL"
     counts = Counter(names.get(str(x), str(x)) for x in labels[binary == 1])
+    st.subheader("Classification Result")
     st.write("**Detected Result:**", result)
-    st.write("**Normal Beats:**", normal, "| **Abnormal Beats:**", abnormal)
+    st.write("**Normal Beats:**", normal)
+    st.write("**Abnormal Beats:**", abnormal)
     if result == "ABNORMAL":
-        st.write("**Detected Beat Types:**", dict(counts))
+        st.write("**Detected Beat Types:**")
+        for name, count in counts.items():
+            st.write(f"- {name}: {count}")
     return result, normal, abnormal, counts
 
 def send_to_lcd(result):
@@ -46,17 +50,21 @@ def send_to_lcd(result):
     except Exception as e:
         st.warning(f"LCD connection error: {e}")
 
-def make_report(result, normal, abnormal, types):
+def make_report(result, types):
+    type_text = "\n".join([f"{name}: {count}" for name, count in types.items()])
+    if result != "ABNORMAL":
+        type_text = "No abnormal types detected."
     prompt = f"""Write a simple English ECG report.
     Overall Result: {result}. Keep this result exactly.
-    Detected abnormal types: {dict(types) if result == "ABNORMAL" else "None"}.
-    Explain PVC, Supraventricular Premature Beat and Fusion Beat simply.
+    Detected Beat Types:
+    {type_text}
+    Explain PVC, Supraventricular and Fusion beats simply.
     Explain the result and recommend consulting a doctor if ABNORMAL.
-    Say this is an experimental project, not a medical device.
-    Do not show beat counts, letters, BPM or Recovery Time."""
+    This is an experimental project, not a medical device.
+    Do not show beat counts, class letters, BPM or Recovery Time."""
     response = requests.post("https://openrouter.ai/api/v1/chat/completions",
         headers={"Authorization": f"Bearer {st.secrets['OPENROUTER_API_KEY']}"},
-        json={"model":"openrouter/auto","messages":[{"role":"user","content":prompt}]},
+        json={"model":"openrouter/auto","messages":[{"role":"user","content":prompt}],"temperature":0.3},
         timeout=60)
     response.raise_for_status()
     report = response.json()["choices"][0]["message"]["content"]
@@ -74,6 +82,15 @@ def show_report(key):
         st.markdown(st.session_state.report)
         st.download_button("Download PDF", st.session_state.pdf, "ECG_Report.pdf", key=key)
 
+def finish(beats):
+    if len(beats) == 0:
+        st.error("No valid ECG beats found.")
+        return
+    st.session_state.report = st.session_state.pdf = None
+    result, normal, abnormal, types = classify(beats)
+    send_to_lcd(result)
+    make_report(result, types)
+
 tab1, tab2 = st.tabs(["Upload CSV", "Live ECG"])
 
 with tab1:
@@ -81,13 +98,7 @@ with tab1:
     if file and st.button("Classify ECG"):
         data = pd.read_csv(file)
         beats = data.values if data.shape[1] == 360 else get_beats(pd.to_numeric(data.iloc[:,0], errors="coerce").dropna().values)
-        if len(beats):
-            st.session_state.report = st.session_state.pdf = None
-            result, normal, abnormal, types = classify(beats)
-            send_to_lcd(result)
-            make_report(result, normal, abnormal, types)
-        else:
-            st.error("No valid ECG beats found.")
+        finish(beats)
     show_report("upload_pdf")
 
 with tab2:
@@ -106,21 +117,12 @@ with tab2:
                         disconnected = True
                         break
                     signal.append(ecg)
+            arduino.close()
             if disconnected:
                 st.error("Electrodes are not connected.")
-                arduino.close()
             else:
                 st.line_chart(signal)
-                beats = get_beats(np.array(signal))
-                if len(beats):
-                    st.session_state.report = st.session_state.pdf = None
-                    result, normal, abnormal, types = classify(beats)
-                    arduino.write((result + "\n").encode())
-                    arduino.close()
-                    make_report(result, normal, abnormal, types)
-                else:
-                    arduino.close()
-                    st.error("Not enough ECG data. Try again.")
+                finish(get_beats(np.array(signal)))
         except Exception as e:
             st.error(f"Error: {e}")
     show_report("live_pdf")
