@@ -81,8 +81,8 @@ On the test data:
 
 | Result | Score |
 |---|---|
-| Recall for normal vs abnormal | **97%** |
-| Accuracy for abnormal type (S, V, F) | **96%** |
+| Recall for normal vs abnormal (macro avg) | **97%** |
+| Recall for abnormal type (S, V, F) | **93%** |
 
 ## Streamlit App
 
