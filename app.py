@@ -203,10 +203,51 @@ with tab2:
                 st.session_state.report = st.session_state.pdf = None
                 result, normal, abnormal, types = classify(beats)
                 
-                # MODIFIED: Limitation Warning
-                # It is practically impossible to send this string back to the Arduino LCD 
-                # because the JavaScript Web Serial port was already closed at the end of the 10 seconds.
-                st.warning(f"Classification Result: {result}. (Note: Cannot send this to LCD using Web Serial)")
+                # MODIFIED: Auto-triggering LCD Write workaround!
+                # This injects a small HTML block that automatically finds the 
+                # pre-approved USB port and shoots the result text to the LCD
+                # without requiring the user to click a second button.
+                lcd_writer_html = f"""
+                <!DOCTYPE html>
+                <html>
+                <body>
+                    <div id="lcd-status" style="font-family: sans-serif; font-weight: bold; color: #555;">
+                        Sending '{result}' to LCD...
+                    </div>
+                    <script>
+                        (async function() {{
+                            const status = document.getElementById('lcd-status');
+                            try {{
+                                // Find ports the user has already approved
+                                const ports = await navigator.serial.getPorts();
+                                if (ports.length > 0) {{
+                                    const port = ports[0];
+                                    await port.open({{ baudRate: 115200 }});
+                                    const encoder = new TextEncoder();
+                                    const writer = port.writable.getWriter();
+                                    
+                                    // Send the result to the Arduino
+                                    await writer.write(encoder.encode("{result}\\n"));
+                                    writer.releaseLock();
+                                    await port.close();
+                                    
+                                    status.innerText = "✓ Sent '{result}' to LCD successfully!";
+                                    status.style.color = "green";
+                                }} else {{
+                                    status.innerText = "Error: No pre-approved USB ports found.";
+                                    status.style.color = "red";
+                                }}
+                            }} catch (err) {{
+                                status.innerText = "Error sending to LCD: " + err.message;
+                                status.style.color = "red";
+                                console.error(err);
+                            }}
+                        }})();
+                    </script>
+                </body>
+                </html>
+                """
+                components.html(lcd_writer_html, height=50)
                 
                 make_report(result, normal, abnormal, types)
             else:
@@ -215,3 +256,4 @@ with tab2:
             st.error("Electrodes are not connected or reading was cancelled.")
             
     show_pdf("live_pdf")
+Show
