@@ -256,4 +256,4 @@ with tab2:
             st.error("Electrodes are not connected or reading was cancelled.")
             
     show_pdf("live_pdf")
-Show
+
