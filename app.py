@@ -42,7 +42,7 @@ def classify(beats):
     st.write("**Detected Result:**", result)
     st.write("**Normal Beats:**", normal, "| **Abnormal Beats:**", abnormal)
     if result == "ABNORMAL":
-        st.write("**Detected Beat Types:**", ", ".join(counts.keys()))
+        st.write("**Detected Beat Types:**", ", ".join(f"{k}: {v}" for k, v in counts.items()))
     return result, normal, abnormal, counts
 
 def make_report(result, normal, abnormal, types):
@@ -275,6 +275,6 @@ with tab2:
         st.write("**Detected Result:**", result)
         st.write("**Normal Beats:**", normal, "| **Abnormal Beats:**", abnormal)
         if result == "ABNORMAL":
-            st.write("**Detected Beat Types:**", ", ".join(types.keys()))
+            st.write("**Detected Beat Types:**", ", ".join(f"{k}: {v}" for k, v in types.items()))
 
     show_pdf("live_pdf")
