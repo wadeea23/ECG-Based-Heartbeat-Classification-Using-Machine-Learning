@@ -1,13 +1,17 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import serial, time, joblib, tensorflow as tf, requests, io
+import joblib, tensorflow as tf, requests, io, tempfile, re
+from datetime import datetime
+from pathlib import Path
 from collections import Counter
 from scipy.signal import find_peaks
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
 from xml.sax.saxutils import escape
-# MODIFIED: Added streamlit components to allow embedding custom HTML/JavaScript
 import streamlit.components.v1 as components
 
 st.set_page_config(page_title="ECG Monitor", layout="wide")
@@ -38,23 +42,18 @@ def classify(beats):
     st.write("**Detected Result:**", result)
     st.write("**Normal Beats:**", normal, "| **Abnormal Beats:**", abnormal)
     if result == "ABNORMAL":
-        st.write("**Detected Beat Types:**", dict(counts))
+        st.write("**Detected Beat Types:**", ", ".join(counts.keys()))
     return result, normal, abnormal, counts
 
-def send_lcd(result):
-    lcd = serial.Serial("COM6", 115200, timeout=1)
-    time.sleep(2)
-    lcd.write((result+"\n").encode())
-    lcd.close()
-
 def make_report(result, normal, abnormal, types):
-    beat_types = dict(types) if result == "ABNORMAL" else "No abnormal types to display."
-    prompt = f"""Write a simple English ECG report.
+    beat_types = ", ".join(types.keys()) if result == "ABNORMAL" else "No abnormal types to display."
+    prompt = f"""Write a simple English ECG report in the style of a medical report.
+    Use these sections: Overall Result, Findings, Interpretation, Recommendation, Disclaimer.
     Overall Result: {result}. Use this result exactly.
     Detected Beat Types: {beat_types}
     Explain PVC, Supraventricular Premature Beat and Fusion Beat simply.
     Explain the result and recommend consulting a doctor if ABNORMAL.
-    Note: This is an experimental machine learning project, not a medical device.
+    In the Disclaimer section, state clearly that this is an experimental machine learning project, not a medical device, and that it must not be relied on for any medical decision.
     Do not show beat counts, classification letters, BPM or Recovery Time.
     Do not invent medical information."""
     r = requests.post("https://openrouter.ai/api/v1/chat/completions",
@@ -62,13 +61,61 @@ def make_report(result, normal, abnormal, types):
         json={"model":"openrouter/auto","messages":[{"role":"user","content":prompt}],"temperature":0.3}, timeout=60)
     r.raise_for_status()
     report = r.json()["choices"][0]["message"]["content"]
-    pdf = io.BytesIO()
+
+    # ---------- PDF ----------
+    navy = colors.HexColor("#1F3A5F")
+    res_color = {"NORMAL": "#1E8449", "ABNORMAL": "#C0392B"}.get(result, "#7F8C8D")
     styles = getSampleStyleSheet()
-    content = [Paragraph("ECG Report", styles["Title"]), Spacer(1,15)]
+    title_st = ParagraphStyle("t", parent=styles["Title"], fontSize=22, textColor=navy, spaceAfter=2)
+    sub_st = ParagraphStyle("s", parent=styles["Normal"], alignment=1, fontSize=10, textColor=colors.grey)
+    head_st = ParagraphStyle("h", parent=styles["Heading2"], fontSize=13, textColor=navy, spaceBefore=12, spaceAfter=4)
+    body_st = ParagraphStyle("b", parent=styles["Normal"], fontSize=11, leading=16, spaceAfter=6)
+    cell_st = ParagraphStyle("c", parent=styles["Normal"], fontSize=11)
+
+    info = Table([
+        [Paragraph("<b>Report Date</b>", cell_st), Paragraph(datetime.now().strftime("%d %B %Y, %H:%M"), cell_st)],
+        [Paragraph("<b>Report Type</b>", cell_st), Paragraph("ECG Heartbeat Classification", cell_st)],
+        [Paragraph("<b>Overall Result</b>", cell_st), Paragraph(f'<font color="{res_color}"><b>{result}</b></font>', cell_st)],
+    ], colWidths=[4.5*cm, 12.5*cm])
+    info.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (0,-1), colors.HexColor("#EAF0F7")),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#B0BEC5")),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("TOPPADDING", (0,0), (-1,-1), 6), ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+    ]))
+
+    content = [Paragraph("ECG Analysis Report", title_st),
+               Paragraph("Machine Learning Based Heartbeat Classification", sub_st),
+               Spacer(1,8), HRFlowable(width="100%", thickness=1.5, color=navy), Spacer(1,12),
+               info, Spacer(1,10)]
+
+    sections = {"overall result", "findings", "interpretation", "recommendation", "disclaimer"}
+    fmt = lambda t: re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", escape(t))
     for line in report.splitlines():
-        if line.strip():
-            content += [Paragraph(escape(line), styles["Normal"]), Spacer(1,7)]
-    SimpleDocTemplate(pdf).build(content)
+        s = line.strip()
+        if not s:
+            continue
+        clean = s.lstrip("#").strip()
+        plain = clean.replace("*", "").rstrip(":").strip()
+        if s.startswith("#") or plain.lower() in sections or (clean.startswith("**") and clean.endswith("**")):
+            content += [Paragraph(escape(plain), head_st),
+                        HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#B0BEC5"))]
+        elif s[:2] in ("- ", "* "):
+            content.append(Paragraph(fmt(s[2:]), body_st, bulletText="•"))
+        else:
+            content.append(Paragraph(fmt(s), body_st))
+
+    def footer(canvas, doc):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(colors.grey)
+        canvas.drawString(2*cm, 1.2*cm, "Experimental ML project - not a medical device. Do not rely on this report for medical decisions.")
+        canvas.drawRightString(A4[0]-2*cm, 1.2*cm, f"Page {doc.page}")
+        canvas.restoreState()
+
+    pdf = io.BytesIO()
+    SimpleDocTemplate(pdf, pagesize=A4, leftMargin=2*cm, rightMargin=2*cm,
+                      topMargin=2*cm, bottomMargin=2*cm).build(content, onFirstPage=footer, onLaterPages=footer)
     st.session_state.report, st.session_state.pdf = report, pdf.getvalue()
 
 def show_pdf(key):
@@ -77,91 +124,108 @@ def show_pdf(key):
         st.download_button("Download PDF", st.session_state.pdf, "ECG_Report.pdf", mime="application/pdf", key=key)
 
 
-# MODIFIED: Added the HTML code block to handle Web Serial API from the browser.
-# This replaces the Python serial loop.
-html_code = """
+# ---------- Live ECG component (HTML is inside the code) ----------
+LIVE_HTML = r"""
 <!DOCTYPE html>
 <html>
 <head>
-    <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 10px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #FF4B4B; color: white; border: none; border-radius: 5px; }
-        #status { margin-top: 10px; font-weight: bold; color: #555; }
-    </style>
+<style>
+    body { font-family: sans-serif; text-align: center; margin-top: 10px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #FF4B4B; color: white; border: none; border-radius: 5px; }
+    #status { margin-top: 10px; font-weight: bold; color: #555; }
+</style>
 </head>
 <body>
-    <button id="connectBtn">Connect to Arduino & Read 10s</button>
-    <div id="status">Waiting for connection...</div>
+<button id="connectBtn">Connect to Arduino & Read 10s</button>
+<div id="status">Waiting for connection...</div>
 
-    <script>
-        function sendDataToPython(dataArray) {
-            window.parent.postMessage({
-                isStreamlitMessage: true,
-                type: "setComponentValue",
-                value: dataArray
-            }, "*");
+<script>
+function send(type, data) {
+    window.parent.postMessage(Object.assign({isStreamlitMessage: true, type: type}, data), "*");
+}
+send("streamlit:componentReady", {apiVersion: 1});
+send("streamlit:setFrameHeight", {height: 120});
+
+let port = null, writer = null, sent = false;
+const status = document.getElementById("status");
+
+window.addEventListener("message", async (e) => {
+    if (e.data.type !== "streamlit:render") return;
+    const result = e.data.args.lcd_result;
+    if (result && port && writer && !sent) {
+        sent = true;
+        try {
+            await writer.write(new TextEncoder().encode(result + "\n"));
+            await new Promise(r => setTimeout(r, 500));
+            writer.releaseLock();
+            await port.close();
+            status.innerText = "Result sent to LCD: " + result;
+        } catch (err) {
+            status.innerText = "Could not send result to LCD.";
+            console.error(err);
+        }
+        port = null; writer = null;
+    }
+});
+
+document.getElementById("connectBtn").addEventListener("click", async () => {
+    sent = false;
+    try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+        writer = port.writable.getWriter();
+        status.innerText = "Connected! Reading data for 10 seconds...";
+
+        const decoder = new TextDecoderStream();
+        const closed = port.readable.pipeTo(decoder.writable);
+        const reader = decoder.readable.getReader();
+
+        let buffer = "", ecgData = [];
+        const start = Date.now();
+
+        while (Date.now() - start < 10000) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += value;
+            const lines = buffer.split("\n");
+            buffer = lines.pop();
+            for (const line of lines) {
+                const parts = line.split(",");
+                if (parts.length === 3) {
+                    if (parseInt(parts[1]) === 1 || parseInt(parts[2]) === 1) {
+                        status.innerText = "Error: Electrodes disconnected!";
+                        reader.cancel();
+                        await closed.catch(() => {});
+                        writer.releaseLock();
+                        await port.close();
+                        port = null; writer = null;
+                        send("streamlit:setComponentValue", {value: [], dataType: "json"});
+                        return;
+                    }
+                    ecgData.push(parseFloat(parts[0]));
+                }
+            }
         }
 
-        document.getElementById('connectBtn').addEventListener('click', async () => {
-            const statusLabel = document.getElementById('status');
-            let port;
-            
-            try {
-                port = await navigator.serial.requestPort();
-                await port.open({ baudRate: 115200 });
-                statusLabel.innerText = "Connected! Reading data for 10 seconds...";
-                
-                const textDecoder = new TextDecoderStream();
-                const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
-                const reader = textDecoder.readable.getReader();
-                
-                let buffer = "";
-                let ecgData = [];
-                let startTime = Date.now();
-                
-                while (Date.now() - startTime < 10000) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-                    
-                    buffer += value;
-                    let lines = buffer.split('\\n');
-                    buffer = lines.pop(); // Keep the incomplete line for the next loop
-                    
-                    for (let line of lines) {
-                        let parts = line.split(',');
-                        if (parts.length === 3) {
-                            let ecgVal = parseFloat(parts[0]);
-                            let plus = parseInt(parts[1]);
-                            let minus = parseInt(parts[2]);
-                            
-                            if (plus === 1 || minus === 1) {
-                                statusLabel.innerText = "Error: Electrodes disconnected!";
-                                reader.cancel();
-                                port.close();
-                                sendDataToPython([]); // Send empty array on error
-                                return;
-                            }
-                            ecgData.push(ecgVal);
-                        }
-                    }
-                }
-                
-                reader.cancel();
-                await readableStreamClosed.catch(() => {});
-                await port.close();
-                
-                statusLabel.innerText = "Finished reading. Sending to AI Model...";
-                sendDataToPython(ecgData);
-                
-            } catch (error) {
-                statusLabel.innerText = "Connection failed or cancelled.";
-                console.error(error);
-            }
-        });
-    </script>
+        reader.cancel();
+        await closed.catch(() => {});
+        status.innerText = "Finished reading. Classifying...";
+        send("streamlit:setComponentValue", {value: ecgData, dataType: "json"});
+    } catch (err) {
+        status.innerText = "Connection failed or cancelled.";
+        console.error(err);
+    }
+});
+</script>
 </body>
 </html>
 """
+
+comp_dir = Path(tempfile.gettempdir()) / "ecg_live_component"
+comp_dir.mkdir(exist_ok=True)
+(comp_dir / "index.html").write_text(LIVE_HTML, encoding="utf-8")
+live_component = components.declare_component("ecg_live", path=str(comp_dir))
+
 
 tab1, tab2 = st.tabs(["Upload CSV", "Live ECG"])
 
@@ -174,7 +238,6 @@ with tab1:
             if len(beats):
                 st.session_state.report = st.session_state.pdf = None
                 result, normal, abnormal, types = classify(beats)
-                send_lcd(result)
                 make_report(result, normal, abnormal, types)
             else:
                 st.error("No valid ECG beats found.")
@@ -183,77 +246,35 @@ with tab1:
     show_pdf("upload_pdf")
 
 with tab2:
-    # MODIFIED: Completely changed tab 2 logic.
-    # Removed the st.button() and Python serial loop.
     st.warning("Note: Web Serial only works on Google Chrome or Microsoft Edge desktop browsers.")
-    
-    # Render the custom HTML button
-    ecg_data_from_js = components.html(html_code, height=120)
-    
-    # This block triggers automatically when the JavaScript finishes 10s and sends data back
-    if isinstance(ecg_data_from_js, list):
-        if len(ecg_data_from_js) > 0:
-            st.success(f"Received {len(ecg_data_from_js)} readings from Arduino.")
-            
-            # Plot the whole graph at once (live animation is not possible with this method)
-            st.line_chart(ecg_data_from_js)
-            
-            beats = get_beats(np.array(ecg_data_from_js))
-            if len(beats):
+    data = live_component(lcd_result=st.session_state.get("live_result"), key="live")
+
+    if data == []:
+        st.error("Electrodes are not connected or reading was cancelled.")
+    elif data and data != st.session_state.get("live_data"):
+        st.session_state.live_data = data
+        st.session_state.live_result = None
+        beats = get_beats(np.array(data))
+        if len(beats):
+            try:
                 st.session_state.report = st.session_state.pdf = None
                 result, normal, abnormal, types = classify(beats)
-                
-                # MODIFIED: Auto-triggering LCD Write workaround!
-                # This injects a small HTML block that automatically finds the 
-                # pre-approved USB port and shoots the result text to the LCD
-                # without requiring the user to click a second button.
-                lcd_writer_html = f"""
-                <!DOCTYPE html>
-                <html>
-                <body>
-                    <div id="lcd-status" style="font-family: sans-serif; font-weight: bold; color: #555;">
-                        Sending '{result}' to LCD...
-                    </div>
-                    <script>
-                        (async function() {{
-                            const status = document.getElementById('lcd-status');
-                            try {{
-                                // Find ports the user has already approved
-                                const ports = await navigator.serial.getPorts();
-                                if (ports.length > 0) {{
-                                    const port = ports[0];
-                                    await port.open({{ baudRate: 115200 }});
-                                    const encoder = new TextEncoder();
-                                    const writer = port.writable.getWriter();
-                                    
-                                    // Send the result to the Arduino
-                                    await writer.write(encoder.encode("{result}\\n"));
-                                    writer.releaseLock();
-                                    await port.close();
-                                    
-                                    status.innerText = "✓ Sent '{result}' to LCD successfully!";
-                                    status.style.color = "green";
-                                }} else {{
-                                    status.innerText = "Error: No pre-approved USB ports found.";
-                                    status.style.color = "red";
-                                }}
-                            }} catch (err) {{
-                                status.innerText = "Error sending to LCD: " + err.message;
-                                status.style.color = "red";
-                                console.error(err);
-                            }}
-                        }})();
-                    </script>
-                </body>
-                </html>
-                """
-                components.html(lcd_writer_html, height=50)
-                
+                st.session_state.live_result = result
+                st.session_state.live_out = (result, normal, abnormal, dict(types))
                 make_report(result, normal, abnormal, types)
+            except Exception as e:
+                st.error(f"Error: {e}")
             else:
-                st.error("Not enough ECG data. Try again.")
+                st.rerun()
         else:
-            st.error("Electrodes are not connected or reading was cancelled.")
-            
-    show_pdf("live_pdf")
+            st.error("Not enough ECG data. Try again.")
 
+    if st.session_state.get("live_out") and st.session_state.get("live_data"):
+        result, normal, abnormal, types = st.session_state.live_out
+        st.line_chart(st.session_state.live_data)
+        st.write("**Detected Result:**", result)
+        st.write("**Normal Beats:**", normal, "| **Abnormal Beats:**", abnormal)
+        if result == "ABNORMAL":
+            st.write("**Detected Beat Types:**", ", ".join(types.keys()))
+
+    show_pdf("live_pdf")
