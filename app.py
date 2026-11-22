@@ -7,6 +7,8 @@ from scipy.signal import find_peaks
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from xml.sax.saxutils import escape
+# MODIFIED: Added streamlit components to allow embedding custom HTML/JavaScript
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="ECG Monitor", layout="wide")
 st.title("ECG Monitor")
@@ -40,7 +42,7 @@ def classify(beats):
     return result, normal, abnormal, counts
 
 def send_lcd(result):
-    lcd = serial.Serial("COM7", 115200, timeout=1)
+    lcd = serial.Serial("COM6", 115200, timeout=1)
     time.sleep(2)
     lcd.write((result+"\n").encode())
     lcd.close()
@@ -74,6 +76,93 @@ def show_pdf(key):
         st.markdown(st.session_state.report)
         st.download_button("Download PDF", st.session_state.pdf, "ECG_Report.pdf", mime="application/pdf", key=key)
 
+
+# MODIFIED: Added the HTML code block to handle Web Serial API from the browser.
+# This replaces the Python serial loop.
+html_code = """
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 10px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #FF4B4B; color: white; border: none; border-radius: 5px; }
+        #status { margin-top: 10px; font-weight: bold; color: #555; }
+    </style>
+</head>
+<body>
+    <button id="connectBtn">Connect to Arduino & Read 10s</button>
+    <div id="status">Waiting for connection...</div>
+
+    <script>
+        function sendDataToPython(dataArray) {
+            window.parent.postMessage({
+                isStreamlitMessage: true,
+                type: "setComponentValue",
+                value: dataArray
+            }, "*");
+        }
+
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            const statusLabel = document.getElementById('status');
+            let port;
+            
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                statusLabel.innerText = "Connected! Reading data for 10 seconds...";
+                
+                const textDecoder = new TextDecoderStream();
+                const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+                const reader = textDecoder.readable.getReader();
+                
+                let buffer = "";
+                let ecgData = [];
+                let startTime = Date.now();
+                
+                while (Date.now() - startTime < 10000) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += value;
+                    let lines = buffer.split('\\n');
+                    buffer = lines.pop(); // Keep the incomplete line for the next loop
+                    
+                    for (let line of lines) {
+                        let parts = line.split(',');
+                        if (parts.length === 3) {
+                            let ecgVal = parseFloat(parts[0]);
+                            let plus = parseInt(parts[1]);
+                            let minus = parseInt(parts[2]);
+                            
+                            if (plus === 1 || minus === 1) {
+                                statusLabel.innerText = "Error: Electrodes disconnected!";
+                                reader.cancel();
+                                port.close();
+                                sendDataToPython([]); // Send empty array on error
+                                return;
+                            }
+                            ecgData.push(ecgVal);
+                        }
+                    }
+                }
+                
+                reader.cancel();
+                await readableStreamClosed.catch(() => {});
+                await port.close();
+                
+                statusLabel.innerText = "Finished reading. Sending to AI Model...";
+                sendDataToPython(ecgData);
+                
+            } catch (error) {
+                statusLabel.innerText = "Connection failed or cancelled.";
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>
+"""
+
 tab1, tab2 = st.tabs(["Upload CSV", "Live ECG"])
 
 with tab1:
@@ -94,40 +183,35 @@ with tab1:
     show_pdf("upload_pdf")
 
 with tab2:
-    if st.button("Start ECG Reading"):
-        try:
-            arduino = serial.Serial("COM7", 115200, timeout=1)
-            time.sleep(2)
-            signal, disconnected = [], False
-            chart = st.empty()
-            start = time.time()
-            while time.time()-start < 10:
-                values = arduino.readline().decode("utf-8", errors="ignore").strip().split(",")
-                if len(values) == 3:
-                    ecg, plus, minus = float(values[0]), int(values[1]), int(values[2])
-                    if plus == 1 or minus == 1:
-                        disconnected = True
-                        break
-                    signal.append(ecg)
-                    if len(signal) % 20 == 0:
-                        chart.line_chart(signal)
-            if disconnected:
-                st.error("Electrodes are not connected.")
+    # MODIFIED: Completely changed tab 2 logic.
+    # Removed the st.button() and Python serial loop.
+    st.warning("Note: Web Serial only works on Google Chrome or Microsoft Edge desktop browsers.")
+    
+    # Render the custom HTML button
+    ecg_data_from_js = components.html(html_code, height=120)
+    
+    # This block triggers automatically when the JavaScript finishes 10s and sends data back
+    if isinstance(ecg_data_from_js, list):
+        if len(ecg_data_from_js) > 0:
+            st.success(f"Received {len(ecg_data_from_js)} readings from Arduino.")
+            
+            # Plot the whole graph at once (live animation is not possible with this method)
+            st.line_chart(ecg_data_from_js)
+            
+            beats = get_beats(np.array(ecg_data_from_js))
+            if len(beats):
+                st.session_state.report = st.session_state.pdf = None
+                result, normal, abnormal, types = classify(beats)
+                
+                # MODIFIED: Limitation Warning
+                # It is practically impossible to send this string back to the Arduino LCD 
+                # because the JavaScript Web Serial port was already closed at the end of the 10 seconds.
+                st.warning(f"Classification Result: {result}. (Note: Cannot send this to LCD using Web Serial)")
+                
+                make_report(result, normal, abnormal, types)
             else:
-                chart.line_chart(signal)
-                beats = get_beats(np.array(signal))
-                if len(beats):
-                    st.session_state.report = st.session_state.pdf = None
-                    result, normal, abnormal, types = classify(beats)
-                    arduino.write((result+"\n").encode())
-                    make_report(result, normal, abnormal, types)
-                else:
-                    st.error("Not enough ECG data. Try again.")
-            arduino.close()
-        except Exception as e:
-            st.error(f"Error: {e}")
-            try:
-                arduino.close()
-            except:
-                pass
+                st.error("Not enough ECG data. Try again.")
+        else:
+            st.error("Electrodes are not connected or reading was cancelled.")
+            
     show_pdf("live_pdf")
