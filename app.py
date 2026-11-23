@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -426,7 +425,7 @@ function drawECG() {
     ctx.strokeStyle = "#00A86B";
     ctx.lineWidth = 2;
 
-    const visibleData = displayData.slice(-500);
+    const visibleData = displayData.slice(-1500);
 
     const minValue = Math.min(...visibleData);
     const maxValue = Math.max(...visibleData);
@@ -435,7 +434,7 @@ function drawECG() {
 
     visibleData.forEach((value, index) => {
 
-        const x = index * width / 499;
+        const x = (index / (visibleData.length - 1)) * width;;
 
         const y = height - (
             (value - minValue) / range
@@ -591,7 +590,7 @@ document.getElementById("connectBtn").addEventListener("click", async () => {
 
                         displayData.push(sample);
 
-                        if (displayData.length > 500) {
+                        if (displayData.length > 1500) {
                             displayData.shift();
                         }
 
@@ -789,3 +788,4 @@ with tab2:
             )
 
     show_pdf("live_pdf")
+
