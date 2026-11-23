@@ -410,31 +410,71 @@ const ctx = canvas.getContext("2d");
 let ecgData = [];
 let displayData = [];
 
+// Display-only filter (raw ecgData is what goes to the model)
+let lp = null, bl = null;
+
+function filterSample(x) {
+    if (lp === null) { lp = x; bl = x; }
+    lp += 0.25 * (x - lp);     // smoothing (reduces noise)
+    bl += 0.01 * (x - bl);     // baseline (removes drift)
+    return lp - bl;
+}
+
+function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const r = canvas.getBoundingClientRect();
+    canvas.width = r.width * dpr;
+    canvas.height = r.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+resizeCanvas();
+
+window.addEventListener("resize", () => {
+    resizeCanvas();
+    drawECG();
+});
+
+let pending = false;
+
+function requestDraw() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+        pending = false;
+        drawECG();
+    });
+}
 
 function drawECG() {
 
-    const width = canvas.width;
-    const height = canvas.height;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
 
     ctx.clearRect(0, 0, width, height);
 
     if (displayData.length < 2) return;
 
-    ctx.beginPath();
+    const visibleData = displayData.slice(-800);
 
-    ctx.strokeStyle = "#00A86B";
-    ctx.lineWidth = 2;
+    let minValue = Infinity, maxValue = -Infinity;
 
-    const visibleData = displayData.slice(-1500);
-
-    const minValue = Math.min(...visibleData);
-    const maxValue = Math.max(...visibleData);
+    for (const v of visibleData) {
+        if (v < minValue) minValue = v;
+        if (v > maxValue) maxValue = v;
+    }
 
     const range = Math.max(maxValue - minValue, 1);
 
+    ctx.beginPath();
+
+    ctx.strokeStyle = "#00A86B";
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = "round";
+
     visibleData.forEach((value, index) => {
 
-        const x = (index / (visibleData.length - 1)) * width;;
+        const x = (index / (visibleData.length - 1)) * width;
 
         const y = height - (
             (value - minValue) / range
@@ -499,6 +539,7 @@ document.getElementById("connectBtn").addEventListener("click", async () => {
 
     ecgData = [];
     displayData = [];
+    lp = null; bl = null;
 
     drawECG();
 
@@ -588,13 +629,13 @@ document.getElementById("connectBtn").addEventListener("click", async () => {
 
                         ecgData.push(sample);
 
-                        displayData.push(sample);
+                        displayData.push(filterSample(sample));
 
                         if (displayData.length > 1500) {
                             displayData.shift();
                         }
 
-                        drawECG();
+                        requestDraw();
 
                     }
 
@@ -788,4 +829,3 @@ with tab2:
             )
 
     show_pdf("live_pdf")
-
