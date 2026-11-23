@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib, tensorflow as tf, requests, io, tempfile, re
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from collections import Counter
 from scipy.signal import find_peaks
@@ -112,7 +112,7 @@ Do not invent medical information.
 
     P = lambda t: Paragraph(t, cell_st)
     info = Table([
-        [P("<b>Report Date</b>"), P(datetime.now().strftime("%d %B %Y, %H:%M"))],
+        [P("<b>Report Date</b>"), P(datetime.now(timezone(timedelta(hours=3))).strftime("%d %B %Y, %H:%M"))],
         [P("<b>Report Type</b>"), P("ECG Heartbeat Classification")],
         [P("<b>Overall Result</b>"), P(f'<font color="{res_color}"><b>{result}</b></font>')],
     ], colWidths=[4.5*cm, 12.5*cm])
