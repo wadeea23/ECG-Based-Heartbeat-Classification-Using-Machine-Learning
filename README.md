@@ -99,16 +99,18 @@ The app has two tabs.
 
 ### 2. Live ECG
 
-The Live ECG tab works **locally with the Arduino**. Run the app on your own computer, connect the Arduino Uno with a USB cable, and open the app in **Google Chrome or Microsoft Edge (desktop)**. The app reads the Arduino directly from the browser using the Web Serial API.
+The Live ECG feature is available in the deployed Streamlit application. To use it, connect the Arduino Uno to your computer using a USB cable and open the application in Google Chrome or Microsoft Edge (desktop).
 
-1. Connect the sensor and the Arduino to the computer.
-2. Click **Connect to Arduino & Read 10s** and choose the Arduino's serial port.
-3. The app reads the ECG signal for 10 seconds and shows it live on the screen.
-4. If an electrode comes off, the app shows a warning and stops.
-5. The app finds the heartbeats, classifies them, and shows the overall result.
-6. It also creates a **PDF report**, the same as the Upload CSV tab.
+1. Connect the ECG sensor to the Arduino.
+2. Connect the Arduino Uno to your computer using USB.
+3. Open the deployed Streamlit app.
+4. Click **Connect to Arduino & Read 10s** and select the Arduino serial port.
+5. The app reads the ECG signal for 10 seconds and displays it on the screen.
+6. If an electrode comes off, the app shows a warning and stops.
+7. The app classifies the heartbeats and displays the overall result.
+8. You can also download a PDF report.
 
-> **Important:** Live ECG needs the Arduino to be connected to the computer that opens the app, and it only works in Chrome or Edge on desktop. The online Streamlit link is used for Upload CSV.
+**Important:** Live ECG requires the Arduino to be connected by USB to the same computer running the browser. It works through the deployed app in Google Chrome or Microsoft Edge on desktop.
 
 ### Overall Result
 
