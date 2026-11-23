@@ -99,12 +99,16 @@ The app has two tabs.
 
 ### 2. Live ECG
 
-1. Connect the sensor and click **Start ECG Reading**.
-2. The app gets the ECG signal from the Arduino Uno through a serial connection and shows it on the screen.
-3. If an electrode comes off, the app shows a warning and stops.
-4. The app finds the heartbeats, classifies them, and shows the overall result.
+The Live ECG tab works **locally with the Arduino**. Run the app on your own computer, connect the Arduino Uno with a USB cable, and open the app in **Google Chrome or Microsoft Edge (desktop)**. The app reads the Arduino directly from the browser using the Web Serial API.
 
-> **Important:** Live ECG only works on a local computer that is connected to the Arduino. It does not work in the online Streamlit link. The online app only supports Upload CSV.
+1. Connect the sensor and the Arduino to the computer.
+2. Click **Connect to Arduino & Read 10s** and choose the Arduino's serial port.
+3. The app reads the ECG signal for 10 seconds and shows it live on the screen.
+4. If an electrode comes off, the app shows a warning and stops.
+5. The app finds the heartbeats, classifies them, and shows the overall result.
+6. It also creates a **PDF report**, the same as the Upload CSV tab.
+
+> **Important:** Live ECG needs the Arduino to be connected to the computer that opens the app, and it only works in Chrome or Edge on desktop. The online Streamlit link is used for Upload CSV.
 
 ### Overall Result
 
@@ -130,7 +134,7 @@ The Arduino sends the readings to the computer. The Streamlit app then processes
 - The result depends on the signal quality and where the electrodes are placed.
 - The model only knows the four trained classes (N, S, V, F).
 - I tested the model on a random split of heartbeats, so I did not test it on completely new patients yet.
-- Live ECG needs a local computer.
+- Live ECG works locally with the Arduino connected, in Chrome or Edge on desktop.
 
 ## Future Work
 
@@ -172,6 +176,8 @@ ECG-Based-Heartbeat-Classification-Using-Machine-Learning/
 pip install -r requirements.txt
 streamlit run app.py
 ```
+
+To use Live ECG, connect the Arduino to your computer before opening the app, then open it in Chrome or Edge.
 
 ## Author
 
